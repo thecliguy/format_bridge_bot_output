@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*-
 ################################################################################
-# Copyright (C) 2018
+# Copyright (C) 2018 - 2019
 # Adam Russell <adam[at]thecliguy[dot]co[dot]uk> 
 # https://www.thecliguy.co.uk
 #
@@ -117,7 +117,18 @@
 ################################################################################
 # Change Log:
 #
-# 0.4.0 10/11/18 (AR)
+# 0.5.1 - 2019-12-01 - Adam Russell
+#   * Replaced all usage of '<>' as a not equal operator with '!=' because the
+#     former isn't supported in Python 3 whereas the latter is supported in both
+#     Python 2 and 3, see:
+#       * https://www.python.org/dev/peps/pep-3100/#core-language
+#       * https://docs.python.org/3/whatsnew/3.0.html#removed-syntax
+#
+# 0.5.0 - 2019-01-14 - Adam Russell
+#   * Revised the way in which unicode is handled in nicks by decoding and 
+#     encoding if using Python 2.
+#
+# 0.4.0 - 2018-11-10 - Adam Russell
 #   * Related script options are now grouped as follows: <optgroup>.<OPTION-NAME>
 #
 #     When a message is received, the server, channel and nick from which it was
@@ -137,10 +148,10 @@
 #       3. <SCRIPT_NAME>_remove-group-options
 #       4. <SCRIPT_NAME>_print-debug
 #
-# 0.3.0 - 14/10/18 (AR)
+# 0.3.0 - 2018-10-14 - Adam Russell
 #   * Updated the default regex to accommodate action messages.
 #
-# 0.2.0 - 16/07/18 (AR)
+# 0.2.0 - 2018-07-16 - Adam Russell
 #   * Removed the 2nd and 3rd default regex values, replaced with empty string.
 #     Added an empty string check to 'msg_cb' to accommodate this change.
 #   * The wrong hook was being used to detect config changes. Was using 
@@ -150,7 +161,7 @@
 #     originate from a specified channel on a specified server then 'msg_cb'
 #     simply returns an unaltered message.
 #
-# 0.1.0 - 15/07/18 (AR)
+# 0.1.0 - 2018-07-18 - Adam Russell
 #   * This script started life as 'weechat_bot2human.py' (version 0.1.1) from  
 #     the scripts repository of the TUNA (Tsinghua University TUNA Association) 
 #     organization on Github: https://github.com/tuna/scripts.
@@ -182,7 +193,7 @@ SCRIPT_NAME = "format_bridge_bot_output"
 SCRIPT_AUTHOR = "Adam Russell (https://www.thecliguy.co.uk)"
 SCRIPT_DESC = "Formats messages received from a bridge bot to appear as though they came from an IRC user."
 SETTINGS_PREFIX = "plugins.var.python.{}.".format(SCRIPT_NAME)
-SCRIPT_VERSION = "0.4.0"
+SCRIPT_VERSION = "0.5.1"
 SCRIPT_LICENSE = "GPLv3"
 
 PY2 = sys.version_info < (3,)
@@ -275,7 +286,7 @@ def config_cb(data, option, value):
 
     
 def add_server_channel_botnicks_nicklength(data, buffer, argList):
-    intMaxArgs = 5
+    intRequiredArgs = 5
     split_args = argList.split(" ")
     num_of_args = len(split_args)
     
@@ -284,9 +295,9 @@ def add_server_channel_botnicks_nicklength(data, buffer, argList):
         w.prnt("", w.prefix("error") + "No arguments supplied.")
         return w.WEECHAT_RC_ERROR
         
-    if num_of_args <> intMaxArgs:
+    if num_of_args != intRequiredArgs:
         #print_help()
-        w.prnt("", w.prefix("error") + "Wrong number of arguments. Supplied: " + str(num_of_args) + ", required: " + str(intMaxArgs) +".")
+        w.prnt("", w.prefix("error") + "Wrong number of arguments. Supplied: " + str(num_of_args) + ", required: " + str(intRequiredArgs) +".")
         return w.WEECHAT_RC_ERROR
     
     GroupName = split_args[0]
@@ -311,7 +322,7 @@ def add_server_channel_botnicks_nicklength(data, buffer, argList):
    
 
 def add_regex(data, buffer, argList):
-    intMaxArgs = 2
+    intRequiredArgs = 2
     split_args = argList.split(" ", 1)
     num_of_args = len(split_args)
     
@@ -320,9 +331,9 @@ def add_regex(data, buffer, argList):
         w.prnt("", w.prefix("error") + "No arguments supplied.")
         return w.WEECHAT_RC_ERROR
         
-    if num_of_args <> intMaxArgs:
+    if num_of_args != intRequiredArgs:
         #print_help()
-        w.prnt("", w.prefix("error") + "Wrong number of arguments. Supplied: " + str(num_of_args) + ", required: " + str(intMaxArgs) +".")
+        w.prnt("", w.prefix("error") + "Wrong number of arguments. Supplied: " + str(num_of_args) + ", required: " + str(intRequiredArgs) +".")
         return w.WEECHAT_RC_ERROR
     
     GroupName = split_args[0]
@@ -338,7 +349,7 @@ def add_regex(data, buffer, argList):
    
 
 def remove_group_options(data, buffer, argList):
-    intMaxArgs = 1
+    intRequiredArgs = 1
     split_args = argList.split(" ")
     num_of_args = len(split_args)
     
@@ -347,9 +358,9 @@ def remove_group_options(data, buffer, argList):
         w.prnt("", w.prefix("error") + "No arguments supplied.")
         return w.WEECHAT_RC_ERROR
         
-    if num_of_args <> intMaxArgs:
+    if num_of_args != intRequiredArgs:
         #print_help()
-        w.prnt("", w.prefix("error") + "Wrong number of arguments. Supplied: " + str(num_of_args) + ", required: " + intMaxArgs + ".")
+        w.prnt("", w.prefix("error") + "Wrong number of arguments. Supplied: " + str(num_of_args) + ", required: " + intRequiredArgs + ".")
         return w.WEECHAT_RC_ERROR
     
     GroupName = split_args[0]
@@ -427,7 +438,24 @@ def msg_cb(data, modifier, modifier_data, string):
     if not m:
         return string
     
-    network, nick, text = m.group('network'), m.group('nick'), m.group('text')
+    action, network, nick, text = m.group('action'), m.group('network'), m.group('nick'), m.group('text')
+    
+    # In Python 2 a string is stored as bytes which for all intents and purposes 
+    # is limited to ASCII characters, whereas in Python 3 a string is stored as 
+    # unicode codepoints.
+    #
+    # This function concatenates unicode codepoints to strings. If working with
+    # Python 2, due to the way strings work, the string first has to be decoded
+    # to UTF8 which takes it from bytes to unicode. Then at the end of the 
+    # function the string is encoded which returns it back to a byte string.
+
+    # If Python 2 then decode the nick (unless it's already a unicode object,
+    # which I don't think should ever be the case).
+    if PY2:
+        if type(nick) is not unicode:
+            nick = nick.decode('utf-8')
+    
+    ####w.prnt("", repr(type(nick)))
     
     # Preventing unwanted @mentions
     # =============================
@@ -441,12 +469,8 @@ def msg_cb(data, modifier, modifier_data, string):
     # removed.
     #
     # In a future version I may make this a configurable option rather than
-    # having it hard-coded.
-    if PY2:
-        ZeroWidthSpace = (u"\u200b").encode("utf-8")
-    else:
-        ZeroWidthSpace = u'\u200b'
-    
+    # having it hard-coded.    
+    ZeroWidthSpace = u'\u200b'
     nick = nick.replace(ZeroWidthSpace, "")
     
     # The width of Weechat's 'prefix line' dynamically expands to accommodate
@@ -464,16 +488,11 @@ def msg_cb(data, modifier, modifier_data, string):
     #
     # If a nick exceeds the maximum length specified then it is truncated
     # with an ellipsis as the last character.
-    
     if intNickMaxLength == 0:
         nickformatted = nick
     else:
-        if len(nick) > intNickMaxLength:
-            if PY2:
-                ellipsis = (u"\u2026").encode("utf-8")
-            else:
-                ellipsis = u'\u2026'
-        
+        if len(nick) > intNickMaxLength:    
+            ellipsis = u'\u2026'
             nickformatted = nick[0:intNickMaxLength] + ellipsis
         else:
             nickformatted = nick
@@ -486,10 +505,15 @@ def msg_cb(data, modifier, modifier_data, string):
     #    20:00:00 =!= | :Barry Rocks!~Barry Rocks@1.2.3.4 PRIVMSG #foobar [slack]  Test message.    
     nickformatted = ''.join(nickformatted.split())
 
-    text = "[" + network + "] " + text
+    # If Python 2 then encode the nick.
+    if PY2:
+        if type(nickformatted) is unicode:
+            nickformatted = nickformatted.encode('utf-8')
+    
+    text = action + "[" + network + "] " + text
     parsed['text'] = text
     parsed['host'] = parsed['host'].replace(bot, nickformatted)
-    
+        
     return ":{host} {command} {channel} {text}".format(**parsed)
 
 
